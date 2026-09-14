@@ -10,12 +10,11 @@
 	<meta name="author" content="Koutsouris Themistokles">
 	<meta name="keywords" content="bloxorz, project, webGL, Graphics, TUC, 2013, Koutsouris, Themos">
 	<link rel="icon" type="image/png" href="/favicon.png"/>
-	<script src="/projectAssets.js"></script>	<!--contains assets in base 64 format-->
 	<script type="module" src="/src/main.ts"></script>
 </head>
 <body>
 	<canvas id="c">Canvas element is not supported. Consider updating browser.</canvas>
-	<img id="glass" src="">
+	<img id="glass" src="/glass.png" alt="">
 	<div id="promptPlay" class="prompt textshading">NEW GAME!</div>
 	<div id="promptLose" class="prompt textshading">TRY AGAIN!</div>
 	<div id="promptCont" class="prompt textshading">CONTINUE!</div>
@@ -33,12 +32,14 @@
 			<li>Click & drag : Camera</li>
 			<li>Escape : Pause</li>
 			<li>0 to 9 : Volume</li>
+			<li>M : Mute</li>
 			<li>Q : Change quality</li>
 			<li>N : New seed</li>
 		</ul>
 	</div>
 	<div id="score" class="textshading"></div>
 	<button id="pause" class="textshading" aria-label="Pause">❚❚</button>
+	<button id="mute" class="textshading" aria-label="Mute">♪</button>
 	<div id="popup" class="textshadingLight"></div>
 	<div id="seed" class="textshadingLight">SEED <span id="seedValue"></span> <a id="newSeed">NEW</a> <a id="shareSeed">SHARE</a></div>
 </body>

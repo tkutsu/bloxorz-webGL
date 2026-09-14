@@ -2,7 +2,7 @@
 import { glob as game } from './state';
 import { beginLevel, startLoop, stopLoop, saveCurrentGame } from './loop';
 import { loadGame, getTopScore, setTopScore } from './save';
-import { play } from './audio';
+import { play, getVolume, setVolume as setAudioVolume, toggleMute as toggleAudioMute, isMuted } from './audio';
 import { initRenderer, resizeCanvas } from './renderer';
 import { levelFor } from './level';
 import { clearGame } from './save';
@@ -19,6 +19,8 @@ export function initUI(){
 	}
 	document.getElementById("newSeed").addEventListener("click",newSeed);
 	document.getElementById("pause").addEventListener("click",pause);
+	document.getElementById("mute").addEventListener("click",toggleMute);
+	refreshMute();
 	document.getElementById("shareSeed").addEventListener("click",shareSeed);
 }
 
@@ -80,13 +82,24 @@ export function changeQuality(){
 
 //0~9 : changes volume
 export function setVolume(digit){
-	var vol=game.volume,next=digit/10;
+	var vol=isMuted()?0:getVolume(),next=digit/10;
 	if(vol!==next){
 		if(digit===0)popup("Volume down (mute)");
 		else if(digit===9)popup("Volume up (max)");
 		else popup((vol>next?"Volume down (":"Volume up (")+digit+")");
 	}
-	game.volume=next;
+	setAudioVolume(next);
+	refreshMute();
+}
+
+//[M] or the speaker button : mute / unmute, remembering the volume
+export function toggleMute(){
+	popup(toggleAudioMute()?"Sound off":"Sound on");
+	refreshMute();
+}
+
+function refreshMute(){
+	document.getElementById("mute").classList.toggle("muted",isMuted()||getVolume()===0);
 }
 
 //starts the webGL game

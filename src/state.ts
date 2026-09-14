@@ -42,5 +42,4 @@ export const glob = {
   topScoreShown: false,
   startTime: null as number | null, //for the FAST! bonus
   randEffect: 0, //level intro/outro animation variant, 0..3
-  volume: 0.1,
 }

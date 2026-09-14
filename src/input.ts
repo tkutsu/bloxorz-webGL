@@ -1,6 +1,6 @@
 import { glob } from './state'
 import { directionOnScreen } from './renderer'
-import { changeQuality, isPlaying, newSeed, pause, setVolume, startFromMenu } from './project.js'
+import { changeQuality, isPlaying, newSeed, pause, setVolume, startFromMenu, toggleMute } from './project.js'
 
 export type Direction = 'up' | 'right' | 'down' | 'left'
 
@@ -21,6 +21,10 @@ const MOVE_KEYS: Record<string, Direction> = {
 }
 
 function onKeyDown(e: KeyboardEvent): void {
+  if (e.key.toLowerCase() === 'm' && !e.repeat) {
+    toggleMute()
+    return
+  }
   if (!isPlaying()) {
     if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') {
       e.preventDefault()

@@ -165,6 +165,26 @@ body:after {
 	display:block;
 }
 
+#mute{
+	position:fixed;
+	top:max(0.3em, env(safe-area-inset-top));
+	left:0.4em;
+	z-index:4;
+	min-width:44px;
+	min-height:44px;
+	background:none;
+	border:none;
+	color:#ffaa00;
+	font:inherit;
+	font-size:1.4rem;
+	opacity:0.7;
+	cursor:pointer;
+}
+#mute.muted{
+	text-decoration:line-through;
+	opacity:0.4;
+}
+
 #popup{
 	padding: 5px;
 	transition: all 0.2s ease-in-out;

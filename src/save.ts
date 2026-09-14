@@ -3,6 +3,7 @@ import type { HeroPos, Level } from './state'
 
 const SAVE_KEY = 'bloxorzGL.save.v2'
 const TOP_SCORE_KEY = 'bloxorzGL.score'
+const SETTINGS_KEY = 'bloxorzGL.settings'
 const LEGACY_PREFIX = 'bloxorzGL.gameInProgress.'
 
 export interface SaveGame {
@@ -64,6 +65,24 @@ export function getTopScore(): number {
 
 export function setTopScore(score: number): void {
   write(TOP_SCORE_KEY, String(score))
+}
+
+export interface Settings {
+  volume: number
+  muted: boolean
+}
+
+export function loadSettings(): Settings {
+  const defaults: Settings = { volume: 0.1, muted: false }
+  try {
+    return { ...defaults, ...(JSON.parse(read(SETTINGS_KEY) ?? '{}') as Partial<Settings>) }
+  } catch {
+    return defaults
+  }
+}
+
+export function saveSettings(settings: Settings): void {
+  write(SETTINGS_KEY, JSON.stringify(settings))
 }
 
 /** Converts the 2013 format (13 keys rewritten every frame) into one v2 blob, then deletes the old keys. */
