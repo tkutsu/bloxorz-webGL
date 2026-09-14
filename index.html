@@ -5,6 +5,8 @@
 <head>
 	<title>Bloxorz in webGL</title>
 	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="theme-color" content="#320000">
 	<meta name="author" content="Koutsouris Themistokles">
 	<meta name="keywords" content="bloxorz, project, webGL, Graphics, TUC, 2013, Koutsouris, Themos">
 	<link rel="icon" type="image/png" href="/favicon.png"/>
@@ -20,6 +22,11 @@
 	<div id="promptTop" class="scorePrompt textshading">TOP SCORE!</div>
 	<div id="promptTime" class="scorePrompt textshading">FAST! +1</div>
 	<div id="help" class="textshadingLight">
+		<ul id="helpTouch">
+			<li>Tap : Play</li>
+			<li>Swipe : Move</li>
+			<li>Hold & drag : Camera</li>
+		</ul>
 		<ul id="helpList">
 			<li>Enter or Space : Play</li>
 			<li>Arrows or WASD : Move</li>
@@ -31,6 +38,7 @@
 		</ul>
 	</div>
 	<div id="score" class="textshading"></div>
+	<button id="pause" class="textshading" aria-label="Pause">❚❚</button>
 	<div id="popup" class="textshadingLight"></div>
 	<div id="seed" class="textshadingLight">SEED <span id="seedValue"></span> <a id="newSeed">NEW</a> <a id="shareSeed">SHARE</a></div>
 </body>

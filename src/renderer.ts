@@ -1,6 +1,8 @@
 import vertexShaderSource from './shaders/cube.vert?raw'
 import fragmentShaderSource from './shaders/cube.frag?raw'
+import { mat4, vec4 } from 'gl-matrix'
 import { CUBE_COLORS, CUBE_INDICES, CUBE_POSITIONS, CUBE_UVS } from './cube'
+import type { Direction } from './input'
 import { m4 } from './m4'
 import { glob, TILE } from './state'
 import { MOVE_FRAMES } from './loop'
@@ -17,13 +19,14 @@ interface Renderer {
 }
 
 let r: Renderer | null = null
-let devicePixels: [number, number] = [0, 0]
 
 //scratch matrices, allocated once
 const pMatrix = m4.create()
 const camera = m4.create()
 const tileCamera = m4.create()
 const mvMatrix = m4.create()
+const viewProjection = m4.create()
+let heroAnchor: [number, number, number] = [0, 0, 0]
 
 function degToRad(degrees: number): number {
   return (degrees * Math.PI) / 180
@@ -80,31 +83,9 @@ async function loadTexture(gl: WebGL2RenderingContext, name: TextureName): Promi
   return texture
 }
 
-function applyCanvasSize(): void {
-  if (!r) return
-  const [width, height] = devicePixels
-  r.canvas.width = Math.max(1, Math.round(width / glob.glQuality))
-  r.canvas.height = Math.max(1, Math.round(height / glob.glQuality))
-}
-
-//the drawing buffer tracks the canvas' size in physical pixels (sharp on HiDPI), capped at 2x and divided by the quality setting
+//the drawing buffer follows the canvas' CSS size × devicePixelRatio (sharp on HiDPI, capped at 2x), divided by the quality setting
 function observeSize(canvas: HTMLCanvasElement): void {
-  const capped = () => Math.min(devicePixelRatio, 2) / devicePixelRatio
-  const measure = () => {
-    devicePixels = [canvas.clientWidth * Math.min(devicePixelRatio, 2), canvas.clientHeight * Math.min(devicePixelRatio, 2)]
-  }
-  const observer = new ResizeObserver(([entry]) => {
-    const box = entry.devicePixelContentBoxSize?.[0]
-    if (box) devicePixels = [box.inlineSize * capped(), box.blockSize * capped()]
-    else measure()
-    applyCanvasSize()
-  })
-  try {
-    observer.observe(canvas, { box: 'device-pixel-content-box' })
-  } catch {
-    observer.observe(canvas) //Safari has no device-pixel-content-box
-  }
-  measure()
+  new ResizeObserver(resizeCanvas).observe(canvas)
 }
 
 /** Creates the context, program, cube and textures once. Resolves false when WebGL2 is unavailable. */
@@ -130,11 +111,12 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<boolean> 
   return true
 }
 
-/** Call when the canvas becomes visible or the quality setting changes. */
+/** Also called when the canvas becomes visible or the quality setting changes. */
 export function resizeCanvas(): void {
   if (!r) return
-  devicePixels = [r.canvas.clientWidth * Math.min(devicePixelRatio, 2), r.canvas.clientHeight * Math.min(devicePixelRatio, 2)]
-  applyCanvasSize()
+  const scale = Math.min(devicePixelRatio, 2) / glob.glQuality
+  r.canvas.width = Math.max(1, Math.round(r.canvas.clientWidth * scale))
+  r.canvas.height = Math.max(1, Math.round(r.canvas.clientHeight * scale))
 }
 
 function drawCube(texture: WebGLTexture): void {
@@ -173,7 +155,10 @@ export function drawScene(): void {
 
   gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-  m4.perspective(45, gl.drawingBufferWidth / gl.drawingBufferHeight, 0.1, 100.0, pMatrix)
+  const aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
+  //45° was tuned on landscape monitors; on portrait screens keep 45° horizontally instead, or the board is cut off at the sides
+  const fovY = aspect >= 1 ? 45 : (2 * Math.atan(Math.tan(degToRad(22.5)) / aspect) * 180) / Math.PI
+  m4.perspective(fovY, aspect, 0.1, 100.0, pMatrix)
   gl.uniformMatrix4fv(r.uPMatrix, false, pMatrix)
 
   //camera, computed once per frame (it used to be rebuilt for every tile)
@@ -199,6 +184,9 @@ export function drawScene(): void {
     m4.rotate(m, degToRad(-66), [1, 0, 0])
     m4.rotate(m, degToRad(25), [0, 0, 1])
   }
+
+  mat4.multiply(viewProjection, pMatrix, camera)
+  heroAnchor = [heroX + centerX * 0.2, -heroY + centerY * 4, -3.9]
 
   //LEVEL
   for (let i = lvl.length; i--; ) {
@@ -304,3 +292,34 @@ export function drawScene(): void {
   m4.scale(mvMatrix, [0.5, 0.5, 1])
   drawCube(r.textures.hero)
 }
+
+/**
+ * Which roll a swipe means. The grid is drawn rotated and the player can orbit the camera, so screen "up"
+ * is not grid "up": project the block's four neighbours through the last frame's camera and pick the one
+ * whose on-screen direction is closest to the swipe.
+ */
+export function directionOnScreen(dx: number, dy: number): Direction {
+  const toScreen = (x: number, y: number, z: number): [number, number] => {
+    const v = vec4.transformMat4(vec4.create(), [x, y, z, 1], viewProjection)
+    return [v[0] / v[3], -v[1] / v[3]] //NDC, with y pointing down like screen pixels
+  }
+  const [ax, ay, az] = heroAnchor
+  const origin = toScreen(ax, ay, az)
+  const aspect = r ? r.gl.drawingBufferWidth / r.gl.drawingBufferHeight : 1
+  //grid x+1 is world x+1, grid y+1 is world y-1
+  const neighbours: [Direction, number, number][] = [['right', 1, 0], ['left', -1, 0], ['down', 0, -1], ['up', 0, 1]]
+  let best: Direction = 'up'
+  let bestCos = -Infinity
+  for (const [direction, wx, wy] of neighbours) {
+    const p = toScreen(ax + wx, ay + wy, az)
+    const sx = (p[0] - origin[0]) * aspect
+    const sy = p[1] - origin[1]
+    const cos = (sx * dx + sy * dy) / (Math.hypot(sx, sy) * Math.hypot(dx, dy))
+    if (cos > bestCos) {
+      bestCos = cos
+      best = direction
+    }
+  }
+  return best
+}
+

@@ -18,12 +18,14 @@ export function initUI(){
 		promptArr[i].addEventListener("pointerdown",startFromMenu);
 	}
 	document.getElementById("newSeed").addEventListener("click",newSeed);
+	document.getElementById("pause").addEventListener("click",pause);
 	document.getElementById("shareSeed").addEventListener("click",shareSeed);
 }
 
 //manipulates the web page
 export function pageUI(result){
 	refreshSeed();
+	document.body.classList.remove("playing");
 	document.getElementById("c").style.display="none";
 	document.getElementById("help").style.display="block";
 	if(result===-1){	//if game lost
@@ -57,6 +59,7 @@ export function pause(){
 	if(game.count===-1)saveCurrentGame();
 	stopLoop();
 	game.canvas.style.display="none";
+	document.body.classList.remove("playing");
 	document.getElementById("help").style.display="block";
 	document.getElementById("promptCont").style.display="block";
 	game.startTime=null;
@@ -94,6 +97,7 @@ export async function webGLStart(){
 		return;
 	}
 	game.canvas.style.display="block";
+	document.body.classList.add("playing");
 	document.getElementById("help").style.display="none";
 	var save=loadGame(),next;
 	if(save){	//if game was stopped
