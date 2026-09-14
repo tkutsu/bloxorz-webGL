@@ -5,13 +5,14 @@ import { glob as game } from './state';
 import { beginLevel, startLoop, stopLoop, saveCurrentGame, MOVE_FRAMES } from './loop';
 import { loadGame, getTopScore, setTopScore } from './save';
 import { play } from './audio';
+import { m4 } from './m4';
 
 var glob={};//webGL state: context, shader program, buffers, textures, matrices
 glob.gl=null;//webGl context, every call to the state machine will be done through this variable
 glob.shaderProgram=null;
-glob.mvMatrix=mat4.create();//ModelView and Projection matrices, mat4 comes from the external library
+glob.mvMatrix=m4.create();//ModelView and Projection matrices
 glob.mvMatrixStack=[];
-glob.pMatrix=mat4.create();
+glob.pMatrix=m4.create();
 glob.cubeVertexPosBuf=null; //contains coordinates
 glob.cubeVertexColorBuf=null; //contains color per vertex
 glob.cubeVertexIndexBuf=null; //contains indices for chains of vertices to draw triangles/other geometry
@@ -596,7 +597,7 @@ export function drawScene() {
 	
 	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);	//viewport = the canvas' actual resolution (smaller than the window when quality is lowered)
 	gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);	//frame & depth buffers cleaned (depth buf for sorting fragments, find visible one per pixel)
-	mat4.perspective(45,gl.drawingBufferWidth/gl.drawingBufferHeight,0.1,100.0,glob.pMatrix);	//projection matrix: FoV deg, aspect ratio, near & far plane
+	m4.perspective(45,gl.drawingBufferWidth/gl.drawingBufferHeight,0.1,100.0,glob.pMatrix);	//projection matrix: FoV deg, aspect ratio, near & far plane
 	//LEVEL
 	for(var i=lvl.length;i--;){	//iterate level rows
 		var row=lvl[i];
@@ -607,58 +608,58 @@ export function drawScene() {
 					height=0.05+row[j]/20;
 				}
 				mvPushMatrix();	//stack to employ a local transformation
-				mat4.identity(glob.mvMatrix);	//modelview Matrix initialized with Identity Matrix
+				m4.identity(glob.mvMatrix);	//modelview Matrix initialized with Identity Matrix
 				
-				mat4.translate(glob.mvMatrix, [0, -(centerY+centerX)/3.5, -(centerY+centerX)*1.75]);	
-				mat4.rotate(glob.mvMatrix, degToRad(game.xTrans*centerX*8), [0, 1, 0]);//rotations with mouse events
-				mat4.rotate(glob.mvMatrix, degToRad(game.yTrans*centerY*8), [-1, 0, 0.3]);
+				m4.translate(glob.mvMatrix, [0, -(centerY+centerX)/3.5, -(centerY+centerX)*1.75]);	
+				m4.rotate(glob.mvMatrix, degToRad(game.xTrans*centerX*8), [0, 1, 0]);//rotations with mouse events
+				m4.rotate(glob.mvMatrix, degToRad(game.yTrans*centerY*8), [-1, 0, 0.3]);
 				
 				if(game.lostGame>0){	//Animation for losing the game
-					mat4.rotate(glob.mvMatrix, degToRad(-(100-game.lostGame)/4+Math.pow(100-game.lostGame,2)/(20*4)), [-0.3, 0.3, 0]);
+					m4.rotate(glob.mvMatrix, degToRad(-(100-game.lostGame)/4+Math.pow(100-game.lostGame,2)/(20*4)), [-0.3, 0.3, 0]);
 				}
 				if(game.newGame>33){	//Animation for starting the game
 					if(randEffect===1||randEffect===2){
-						mat4.translate(glob.mvMatrix, [0, 0, -Math.pow(game.newGame-33,2)/50]);
+						m4.translate(glob.mvMatrix, [0, 0, -Math.pow(game.newGame-33,2)/50]);
 					}
 					if(randEffect===2||randEffect===3){
-						mat4.rotate(glob.mvMatrix, degToRad((game.newGame-33)*360/66),[0,1,1]);
+						m4.rotate(glob.mvMatrix, degToRad((game.newGame-33)*360/66),[0,1,1]);
 					}
 				}
-				mat4.translate(glob.mvMatrix, [0, 0, (centerY+centerX)*2]);
-				mat4.rotate(glob.mvMatrix, degToRad(-66), [1, 0, 0]);
-				mat4.rotate(glob.mvMatrix, degToRad(25), [0, 0, 1]);
+				m4.translate(glob.mvMatrix, [0, 0, (centerY+centerX)*2]);
+				m4.rotate(glob.mvMatrix, degToRad(-66), [1, 0, 0]);
+				m4.rotate(glob.mvMatrix, degToRad(25), [0, 0, 1]);
 				if(game.newGame>0){	//Animation for starting the game
-					mat4.translate(glob.mvMatrix, [j+centerX*0.2, -i+centerY*4, (-5+height)+
+					m4.translate(glob.mvMatrix, [j+centerX*0.2, -i+centerY*4, (-5+height)+
 						Math.max(0,game.newGame-33)/(Math.log(2+Math.abs((j-heroPos[0])*(i-heroPos[1])))/Math.LN2)]);
 						//pseudorandom numbers, but static for the two seeds, through three linear congruential generators
-					mat4.rotate(glob.mvMatrix, degToRad(Math.pow(Math.max(0,game.newGame-33),1.5)) , [ ((97*i+j)%23) , ((79*i+j)%11) , ((83*i+j)%17) ]);
+					m4.rotate(glob.mvMatrix, degToRad(Math.pow(Math.max(0,game.newGame-33),1.5)) , [ ((97*i+j)%23) , ((79*i+j)%11) , ((83*i+j)%17) ]);
 				}else if(game.wonGame>0){	//Animation for winning the level
 					if(row[j]===99){	//Animation for finish tile when winning the level
-						mat4.translate(glob.mvMatrix,[
+						m4.translate(glob.mvMatrix,[
 							j+centerX*0.2, 
 							-i+centerY*4, 
 							(-5+height)+(100-game.wonGame)/5-Math.pow(100-game.wonGame,2)/150
 						]);
 					}else{
-						mat4.translate(glob.mvMatrix,[
+						m4.translate(glob.mvMatrix,[
 							j+centerX*0.2, 
 							-i+centerY*4, 
 							(-5+height)-Math.pow(100-game.wonGame,2)/(40*Math.log(2+Math.abs((j-heroPos[0])*(i-heroPos[1])))/Math.LN2)
 						]);
 					}
-					mat4.rotate(glob.mvMatrix, degToRad((100-game.wonGame)*5), [j-finishPos[0], i-finishPos[1], 1]);
+					m4.rotate(glob.mvMatrix, degToRad((100-game.wonGame)*5), [j-finishPos[0], i-finishPos[1], 1]);
 				}else if(game.lostGame>0){	//Animation for losing the game
-					mat4.translate(glob.mvMatrix, [j+centerX*0.2, -i+centerY*4, (-5+height)+
+					m4.translate(glob.mvMatrix, [j+centerX*0.2, -i+centerY*4, (-5+height)+
 					Math.pow(100-game.lostGame,2)/150]);
 				}else{
-					mat4.translate(glob.mvMatrix, [j+centerX*0.2, -i+centerY*4, -5+height]);
+					m4.translate(glob.mvMatrix, [j+centerX*0.2, -i+centerY*4, -5+height]);
 				}
 				if(row[j]===99){	//finish tile
-					mat4.translate(glob.mvMatrix, [0, 0, 0.3+Math.sin(degToRad(game.rCube))/6]);
-					mat4.rotate(glob.mvMatrix, degToRad(game.rCube), [Math.sin(degToRad(game.rCube/2)), Math.sin(degToRad(game.rCube*4)), Math.sin(degToRad(game.rCube*2))]);
-					mat4.scale(glob.mvMatrix, [0.35, 0.35, height]);
+					m4.translate(glob.mvMatrix, [0, 0, 0.3+Math.sin(degToRad(game.rCube))/6]);
+					m4.rotate(glob.mvMatrix, degToRad(game.rCube), [Math.sin(degToRad(game.rCube/2)), Math.sin(degToRad(game.rCube*4)), Math.sin(degToRad(game.rCube*2))]);
+					m4.scale(glob.mvMatrix, [0.35, 0.35, height]);
 				}else{
-					mat4.scale(glob.mvMatrix, [0.5, 0.5, height]);
+					m4.scale(glob.mvMatrix, [0.5, 0.5, height]);
 				}
 				gl.bindBuffer(gl.ARRAY_BUFFER, glob.cubeVertexPosBuf);	//we bind the buffer for the cube vertices
 				gl.vertexAttribPointer(glob.shaderProgram.vertexPositionAttribute, glob.cubeVertexPosBuf.itemSize, gl.FLOAT, false, 0, 0);
@@ -690,32 +691,32 @@ export function drawScene() {
 
 	//hero
 	mvPushMatrix();	//we use the matrix stack to employ a local transformation to the cube
-	mat4.identity(glob.mvMatrix);	//the modelview Matrix is initialized with the Identity Matrix	
-	mat4.translate(glob.mvMatrix, [0, -(centerY+centerX)/3.5, -(centerY+centerX)*1.75]);	
-	mat4.rotate(glob.mvMatrix, degToRad(game.xTrans*centerX*8), [0, 1, 0]);//rotations with mouse events
-	mat4.rotate(glob.mvMatrix, degToRad(game.yTrans*centerY*8), [-1, 0, 0.3]);
-	mat4.translate(glob.mvMatrix, [0, 0, (centerY+centerX)*2]);
-	mat4.rotate(glob.mvMatrix, degToRad(-66), [1, 0, 0]);
-	mat4.rotate(glob.mvMatrix, degToRad(25), [0, 0, 1]);
+	m4.identity(glob.mvMatrix);	//the modelview Matrix is initialized with the Identity Matrix	
+	m4.translate(glob.mvMatrix, [0, -(centerY+centerX)/3.5, -(centerY+centerX)*1.75]);	
+	m4.rotate(glob.mvMatrix, degToRad(game.xTrans*centerX*8), [0, 1, 0]);//rotations with mouse events
+	m4.rotate(glob.mvMatrix, degToRad(game.yTrans*centerY*8), [-1, 0, 0.3]);
+	m4.translate(glob.mvMatrix, [0, 0, (centerY+centerX)*2]);
+	m4.rotate(glob.mvMatrix, degToRad(-66), [1, 0, 0]);
+	m4.rotate(glob.mvMatrix, degToRad(25), [0, 0, 1]);
 	
 	var animT=MOVE_FRAMES,count=game.count===-1?animT:game.count,hp=game.hp,hpp=game.hpp;
 	var hhp=game.spring?game.hhp+0.1*(count+1):game.hhp;	//add "spring" to step
 	if(game.newGame>0){	//Animation for starting the game
-		mat4.translate(glob.mvMatrix,[
+		m4.translate(glob.mvMatrix,[
 			heroPos[0]+game.heroFixPos[0]+centerX*0.2, 
 			-heroPos[1]+game.heroFixPos[1]+centerY*4,
 			-3.9+game.heroHeight+game.newGame+2	//add extra height to smooth transition
 		]);
-		mat4.rotate(glob.mvMatrix, degToRad(game.rotX), [1, 0, 0]);
-		mat4.rotate(glob.mvMatrix, degToRad(game.rotY), [0, 1, 0]);
-		mat4.rotate(glob.mvMatrix, degToRad(game.rotZ), [0, 0, 1]);
+		m4.rotate(glob.mvMatrix, degToRad(game.rotX), [1, 0, 0]);
+		m4.rotate(glob.mvMatrix, degToRad(game.rotY), [0, 1, 0]);
+		m4.rotate(glob.mvMatrix, degToRad(game.rotZ), [0, 0, 1]);
 	}else if(game.wonGame>0){	//Animation for winning the level
-		mat4.translate(glob.mvMatrix,[
+		m4.translate(glob.mvMatrix,[
 			finishPos[0]+game.heroFixPos[0]+centerX*0.2, 
 			-finishPos[1]+game.heroFixPos[1]+centerY*4,
 			-3.9+game.heroHeight+(100-game.wonGame)/3-Math.pow(100-game.wonGame,2)/150
 		]);
-		mat4.rotate(glob.mvMatrix, degToRad(Math.pow(100-game.wonGame,2)/20), [finishPos[0]/2, finishPos[1]/2, 1]);
+		m4.rotate(glob.mvMatrix, degToRad(Math.pow(100-game.wonGame,2)/20), [finishPos[0]/2, finishPos[1]/2, 1]);
 	}else if(game.lostGame>0){	//Animation for losing the game
 		var distJump=[0,0];	//extra distance to jump
 		if(heroPos[1]<lvl.length-1 && lvl[heroPos[1]+1][heroPos[0]]!==-99){		distJump[1]+=-1; }
@@ -726,27 +727,27 @@ export function drawScene() {
 		if(heroPos[1]>1 && lvl[heroPos[1]-2][heroPos[0]]!==-99){				distJump[1]+= 1; }
 		if(heroPos[0]<lvl[0].length-2 && lvl[heroPos[1]][heroPos[0]+2]!==-99){	distJump[0]+=-1; }
 		if(heroPos[0]>1 && lvl[heroPos[1]][heroPos[0]-2]!==-99){				distJump[0]+= 1; }
-		mat4.translate(glob.mvMatrix,[
+		m4.translate(glob.mvMatrix,[
 			(distJump[0]*(100-game.lostGame)/20+heroPos[0])+game.heroFixPos[0]+centerX*0.2, 
 			-(distJump[1]*(100-game.lostGame)/20+heroPos[1])+game.heroFixPos[1]+centerY*4, 
 			-3.9+game.heroHeight-Math.pow(95-game.lostGame,2)/120
 		]);
-		mat4.rotate(glob.mvMatrix, degToRad((game.rotX*(100-game.lostGame)/15)+(game.rotXprev*game.lostGame/100)), [1, 0, 0]);
-		mat4.rotate(glob.mvMatrix, degToRad((game.rotY*(100-game.lostGame)/15)+(game.rotYprev*game.lostGame/100)), [0, 1, 0]);
-		mat4.rotate(glob.mvMatrix, degToRad((game.rotZ*(100-game.lostGame)/15)+(game.rotZprev*game.lostGame/100)), [0, 0, 1]);
-		mat4.rotate(glob.mvMatrix, degToRad(Math.pow(100-game.lostGame,2)/30), [1, 1, 1]);
+		m4.rotate(glob.mvMatrix, degToRad((game.rotX*(100-game.lostGame)/15)+(game.rotXprev*game.lostGame/100)), [1, 0, 0]);
+		m4.rotate(glob.mvMatrix, degToRad((game.rotY*(100-game.lostGame)/15)+(game.rotYprev*game.lostGame/100)), [0, 1, 0]);
+		m4.rotate(glob.mvMatrix, degToRad((game.rotZ*(100-game.lostGame)/15)+(game.rotZprev*game.lostGame/100)), [0, 0, 1]);
+		m4.rotate(glob.mvMatrix, degToRad(Math.pow(100-game.lostGame,2)/30), [1, 1, 1]);
 	}else{	//rolling (or resting, when count===animT)
-		mat4.translate(glob.mvMatrix,[
+		m4.translate(glob.mvMatrix,[
 			(hp[0]*count/animT)+(hpp[0]*(animT-count)/animT)+(game.heroFixPos[0]*count/animT)+(game.heroFixPosPrev[0]*(animT-count)/animT)+centerX*0.2, 
 			-(hp[1]*count/animT+hpp[1]*(animT-count)/animT)+(game.heroFixPos[1]*count/animT)+(game.heroFixPosPrev[1]*(animT-count)/animT)+centerY*4, 
 			-3.9+(game.heroHeight*count/animT)-(hhp*(count-animT)/animT)
 		]);
-		mat4.rotate(glob.mvMatrix, degToRad((game.rotX*count/animT)+(game.rotXprev*(animT-count)/animT)), [1, 0, 0]);
-		mat4.rotate(glob.mvMatrix, degToRad((game.rotY*count/animT)+(game.rotYprev*(animT-count)/animT)), [0, 1, 0]);
-		mat4.rotate(glob.mvMatrix, degToRad((game.rotZ*count/animT)+(game.rotZprev*(animT-count)/animT)), [0, 0, 1]);
+		m4.rotate(glob.mvMatrix, degToRad((game.rotX*count/animT)+(game.rotXprev*(animT-count)/animT)), [1, 0, 0]);
+		m4.rotate(glob.mvMatrix, degToRad((game.rotY*count/animT)+(game.rotYprev*(animT-count)/animT)), [0, 1, 0]);
+		m4.rotate(glob.mvMatrix, degToRad((game.rotZ*count/animT)+(game.rotZprev*(animT-count)/animT)), [0, 0, 1]);
 	}
 	
-	mat4.scale(glob.mvMatrix, [0.5, 0.5, 1]);
+	m4.scale(glob.mvMatrix, [0.5, 0.5, 1]);
 	gl.bindBuffer(gl.ARRAY_BUFFER, glob.cubeVertexPosBuf);	//we bind the buffer for the cube vertices
 	gl.vertexAttribPointer(glob.shaderProgram.vertexPositionAttribute, glob.cubeVertexPosBuf.itemSize, gl.FLOAT, false, 0, 0);
 	gl.bindBuffer(gl.ARRAY_BUFFER, glob.cubeVertexColorBuf);	//we bind the buffer for the cube colors
@@ -765,8 +766,8 @@ export function drawScene() {
 
 //The matrix stack operation are implemented below to handle local transformations
 function mvPushMatrix(){	//Push Matrix Operation
-	var copy=mat4.create();
-	mat4.set(glob.mvMatrix,copy);
+	var copy=m4.create();
+	m4.set(glob.mvMatrix,copy);
 	glob.mvMatrixStack.push(copy);
 }
 function mvPopMatrix(){	//Pop Matrix Operation
