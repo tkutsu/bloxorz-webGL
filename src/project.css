@@ -2,7 +2,7 @@
 
 @font-face {	/*include the arial black font if it is not installed*/
 font-family: ArialBlack;
-src: url('Arial-Black.woff');
+src: url('/Arial-Black.woff');
 }
 
 *{
@@ -13,7 +13,7 @@ src: url('Arial-Black.woff');
 body, html{
 	height:100%;
 	background-color:rgb(50,0,0);
-	background-image:url('projectTextures/bck1.jpg');
+	background-image:url('/projectTextures/bck1.jpg');
     background-repeat:no-repeat;
     background-size:cover;
     background-position: center;

@@ -1,4 +1,6 @@
 //THEMISTOKLIS KOUTSOURIS - TUC - GRAPHICS COURSE - BLOXORZ IMPLEMENTED WITH WEBGL
+import vertexShaderSource from './shaders/cube.vert?raw';
+import fragmentShaderSource from './shaders/cube.frag?raw';
 
 var glob={};//Singleton pattern: namespacing vars as object properties, prevents global scope cluttering/overwriting
 glob.gl=null;//webGl context, every call to the state machine will be done through this variable
@@ -48,9 +50,12 @@ glob.randEffect=null;	//animation type (random discrete value from 0 ~ 3)
 glob.volume=0.1;	//global volume parameter
 glob.newGameFlag=true;	//true if started new game, helps to prebuffer sounds
 
+//module scope (these used to leak onto window as implicit globals, which strict-mode ES modules forbid)
+var textureCoordAttribute,cubeVerticesTextureCoordBuffer,hp,hpp;
+
 
 //manipulates the web page
-function pageUI(result){
+export function pageUI(result){
 
 	var promptArr=document.getElementsByClassName("prompt");
 	var help=document.getElementById("help");
@@ -61,7 +66,7 @@ function pageUI(result){
 			this.style.transform='scale(200)';
 			this.style.oTransform='scale(200)';
 			help.style.opacity=0;
-			window.setTimeout('webGLStart();',500);
+			window.setTimeout(webGLStart,500);
 		}
 		disableSelection(promptArr[i]); //prevent selection
 	}
@@ -77,7 +82,7 @@ function pageUI(result){
 				promptArr[i].style.oTransform='scale(200)';
 			}
 			help.style.opacity=0;
-			window.setTimeout('webGLStart();',500);
+			window.setTimeout(webGLStart,500);
 		}
 	}
 	document.getElementById("c").style.display="none";
@@ -322,7 +327,7 @@ function initGL(canvasId){
 
 //Creates a program from a vertex + fragment shader pair
 function initShaders(){
-	var local=glob,gl=local.gl,fragmentShader=getShader(gl,"fShader"), vertexShader=getShader(gl,"vShader");
+	var local=glob,gl=local.gl,fragmentShader=compileShader(gl,gl.FRAGMENT_SHADER,fragmentShaderSource), vertexShader=compileShader(gl,gl.VERTEX_SHADER,vertexShaderSource);
 	glob.shaderProgram = gl.createProgram();
 	var shProgram=glob.shaderProgram;
 	gl.attachShader(shProgram, vertexShader);
@@ -347,36 +352,16 @@ function initShaders(){
 }
 
 
-//Find and compile shaders (vertex + fragment shader)
-function getShader(gl,id){
-	var shaderScript,code="",el,shader,doc=document;
-	if(doc.getElementById(id)){
-		shaderScript=doc.getElementById(id);
-	}else{
-		return null;
-	}
-	el=shaderScript.firstChild;
-	while(el){
-		if(el.nodeType===3){
-			code+=el.textContent;
-		}
-		el = el.nextSibling;
-	}
-	if (shaderScript.type === "x-shader/x-fragment") {	//create shader
-		shader = gl.createShader(gl.FRAGMENT_SHADER);
-	}else if (shaderScript.type === "x-shader/x-vertex") {
-		shader = gl.createShader(gl.VERTEX_SHADER);
-	}else{
-		return null;
-	}
-	gl.shaderSource(shader, code);	//give code and ask WebGL to compile shader
+//Compile a shader of the given type (vertex or fragment) from GLSL source
+function compileShader(gl,type,source){
+	var shader=gl.createShader(type);
+	gl.shaderSource(shader, source);	//give code and ask WebGL to compile shader
 	gl.compileShader(shader);
 	if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){	//check for errors
 		console.log("Shader compilation error:\n"+gl.getShaderInfoLog(shader));
 		return null;
-	}else{
-		return shader;
 	}
+	return shader;
 }
 
 //Initialize vertices, indices and colors
@@ -470,7 +455,7 @@ function initBuffers(){
 	
 	glob.cubeVertexColorBuf=gl.createBuffer();	//Color
 	gl.bindBuffer(gl.ARRAY_BUFFER, glob.cubeVertexColorBuf);
-	colors=[
+	var colors=[
 		[1.0, 1.0, 1.0, 1.0],	//white mask
 		[0.25, 0.25, 0.25, 1.0]];	//Black mask
 	var unpackedColors=[];
@@ -833,7 +818,7 @@ function popup(text){
 
 //Loads a new level
 function loadLevel(x,y){
-	lvl=randomLevelGenerator(x,y);
+	var lvl=randomLevelGenerator(x,y);
 	
 //lvl=[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,99],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,-98,0,0,0,0,98,0,0,0,0,0,0,0,0,0,-99],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]];
 /*
@@ -861,62 +846,62 @@ for(i=0;i<10;i++){console.log(lvl[i][0]+"\t"+ lvl[i][1]+"\t"+ lvl[i][2]+"\t"+ lv
 //NOTE2: --allow-file-access-from-files must be added to chrome, to bypass same origin policy
 function initTextures(){
   glob.block = glob.gl.createTexture();
-  blockImage = new Image();
+  var blockImage = new Image();
   blockImage.onload = function() { handleTextureLoaded(blockImage, glob.block); }
   blockImage.src = "projectTextures/block.bmp";
   
   glob.end = glob.gl.createTexture();
-  endImage = new Image();
+  var endImage = new Image();
   endImage.onload = function() { handleTextureLoaded(endImage, glob.end); }
   endImage.src = "projectTextures/end.bmp";
   
   glob.endD = glob.gl.createTexture();
-  endDImage = new Image();
+  var endDImage = new Image();
   endDImage.onload = function() { handleTextureLoaded(endDImage, glob.endD); }
   endDImage.src = "projectTextures/endD.bmp";
   
   glob.endDL = glob.gl.createTexture();
-  endDLImage = new Image();
+  var endDLImage = new Image();
   endDLImage.onload = function() { handleTextureLoaded(endDLImage, glob.endDL); }
   endDLImage.src = "projectTextures/endDL.bmp";
   
   glob.endDR = glob.gl.createTexture();
-  endDRImage = new Image();
+  var endDRImage = new Image();
   endDRImage.onload = function() { handleTextureLoaded(endDRImage, glob.endDR); }
   endDRImage.src = "projectTextures/endDR.bmp";
   
   glob.endL = glob.gl.createTexture();
-  endLImage = new Image();
+  var endLImage = new Image();
   endLImage.onload = function() { handleTextureLoaded(endLImage, glob.endL); }
   endLImage.src = "projectTextures/endL.bmp";
   
   glob.endR = glob.gl.createTexture();
-  endRImage = new Image();
+  var endRImage = new Image();
   endRImage.onload = function() { handleTextureLoaded(endRImage, glob.endR); }
   endRImage.src = "projectTextures/endR.bmp";
   
   glob.endU = glob.gl.createTexture();
-  endUImage = new Image();
+  var endUImage = new Image();
   endUImage.onload = function() { handleTextureLoaded(endUImage, glob.endU); }
   endUImage.src = "projectTextures/endU.bmp";
   
   glob.endUL = glob.gl.createTexture();
-  endULImage = new Image();
+  var endULImage = new Image();
   endULImage.onload = function() { handleTextureLoaded(endULImage, glob.endUL); }
   endULImage.src = "projectTextures/endUL.bmp";
   
   glob.endUR = glob.gl.createTexture();
-  endURImage = new Image();
+  var endURImage = new Image();
   endURImage.onload = function() { handleTextureLoaded(endURImage, glob.endUR); }
   endURImage.src = "projectTextures/endUR.bmp";
   
   glob.start = glob.gl.createTexture();
-  startImage = new Image();
+  var startImage = new Image();
   startImage.onload = function() { handleTextureLoaded(startImage, glob.start); }
   startImage.src = "projectTextures/start.bmp";
   
   glob.hero = glob.gl.createTexture();
-  heroImage = new Image();
+  var heroImage = new Image();
   heroImage.onload = function() { handleTextureLoaded(heroImage, glob.hero); }
   heroImage.src = "projectTextures/hero.bmp";
 }
@@ -1344,7 +1329,7 @@ function setMatrixUniforms() {
 
 //Randomly creates rooms and connects them
 function randomLevelGenerator(x,y){
-	var startX=0,startY=0,endX=x,endY=y,room1X,room1Y,room2X,room2Y,room3X,room3Y,lvl=[],x1PadS=0,y1PadS=0,x1PadE=0,y1PadE=0,x1Pad1=0,y1Pad1=0,x1Pad2=0,y1Pad2=0,x1Pad3=0,y1Pad3=0,x2PadS=0,y1PadS=0,x1PadE=0,y1PadE=0,x1Pad1=0,y1Pad1=0,x1Pad2=0,y1Pad2=0,x1Pad3=0,y1Pad3=0;
+	var startX=0,startY=0,endX=x,endY=y,room1X,room1Y,room2X,room2Y,room3X,room3Y,lvl=[],x1PadS=0,y1PadS=0,x1PadE=0,y1PadE=0,x1Pad1=0,y1Pad1=0,x1Pad2=0,y1Pad2=0,x1Pad3=0,y1Pad3=0,x2PadS=0,y2PadS=0,x2PadE=0,y2PadE=0,x2Pad1=0,y2Pad1=0,x2Pad2=0,y2Pad2=0,x2Pad3=0,y2Pad3=0;
 	x--,y--; //arrays start from 0
 	
 	do{	//calculate random start/end positions (and room padding). Must be at least 1/2.5 of the level apart
@@ -1404,7 +1389,7 @@ function randomLevelGenerator(x,y){
 	//98: start, 99: end, -99: empty, -98:crystal, else height of level
 	for(var i=y+1;i--;){	//create map with rooms
 		lvl[i]=[];
-		row=lvl[i];
+		var row=lvl[i];
 		for(var j=x+1;j--;){
 			if(i-y1PadS<=startY&&startY<=i+y2PadS&&j-x1PadS<=startX&&startX<=j+x2PadS){ row[j]=0; }	//fill around start
 			else if(i-y1PadE<=endY&&endY<=i+y2PadE&&j-x1PadE<=endX&&endX<=j+x2PadE){ row[j]=0; }	//fill around end
