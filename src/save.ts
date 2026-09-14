@@ -1,3 +1,4 @@
+import { randomSeed } from './rng'
 import type { HeroPos, Level } from './state'
 
 const SAVE_KEY = 'bloxorzGL.save.v2'
@@ -5,7 +6,9 @@ const TOP_SCORE_KEY = 'bloxorzGL.score'
 const LEGACY_PREFIX = 'bloxorzGL.gameInProgress.'
 
 export interface SaveGame {
-  lvl: Level
+  runSeed: number
+  level: number
+  lvl: Level //stored, not regenerated, so saves survive changes to the generator
   heroPos: HeroPos
   score: number
   topScoreShown: boolean
@@ -45,7 +48,7 @@ export function loadGame(): SaveGame | null {
   if (!raw) return null
   try {
     const save = JSON.parse(raw) as SaveGame
-    return Array.isArray(save.lvl) && Array.isArray(save.heroPos) ? save : null
+    return typeof save.runSeed === 'number' && Array.isArray(save.lvl) && Array.isArray(save.heroPos) ? save : null
   } catch {
     return null
   }
@@ -79,6 +82,8 @@ export function migrateLegacySave(): void {
     try {
       const [x, y, orientation] = JSON.parse(heroPos) as number[]
       saveGame({
+        runSeed: randomSeed(),
+        level: 0,
         lvl: JSON.parse(lvl) as Level,
         heroPos: [x, y, orientation],
         score: Number(read(LEGACY_PREFIX + 'score')) || 0,

@@ -1,5 +1,5 @@
 import { glob } from './state'
-import { changeQuality, isPlaying, pause, setVolume, startFromMenu } from './project.js'
+import { changeQuality, isPlaying, newSeed, pause, setVolume, startFromMenu } from './project.js'
 
 export type Direction = 'up' | 'right' | 'down' | 'left'
 
@@ -24,6 +24,8 @@ function onKeyDown(e: KeyboardEvent): void {
     if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') {
       e.preventDefault()
       startFromMenu()
+    } else if (e.key.toLowerCase() === 'n') {
+      newSeed()
     }
     return
   }

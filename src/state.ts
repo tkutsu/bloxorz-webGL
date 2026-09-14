@@ -36,6 +36,8 @@ export const glob = {
   wonGame: -1,
   lostGame: -1,
 
+  runSeed: 0, //every level of a run derives from this, shared as ?seed=
+  level: 0, //levels completed in this run
   score: 0,
   topScoreShown: false,
   startTime: null as number | null, //for the FAST! bonus

@@ -87,7 +87,14 @@ export function beginLevel(lvl: Level, savedPos: HeroPos | null): void {
 
 export function saveCurrentGame(): void {
   if (!glob.lvl) return
-  saveGame({ lvl: glob.lvl, heroPos: glob.heroPos, score: glob.score, topScoreShown: glob.topScoreShown })
+  saveGame({
+    runSeed: glob.runSeed,
+    level: glob.level,
+    lvl: glob.lvl,
+    heroPos: glob.heroPos,
+    score: glob.score,
+    topScoreShown: glob.topScoreShown,
+  })
 }
 
 function update(steps: number): void {
@@ -184,6 +191,7 @@ function checkConditions(): void {
     } else if (glob.wonGame === 0) {
       stopLoop()
       clearGame()
+      glob.level++
       glob.score++
       webGLStart()
     }
@@ -195,6 +203,7 @@ function checkConditions(): void {
       clearGame()
       glob.lvl = null
       glob.startTime = null
+      glob.level = 0 //TRY AGAIN replays the same seed from its first level
       glob.score = 0
       glob.topScoreShown = false
       pageUI(-1)
