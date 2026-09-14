@@ -9,6 +9,9 @@ import { drawScene } from './renderer'
 const FRAME_MS = 1000 / 60
 export const MOVE_FRAMES = 8
 
+//OS-level "reduce motion": level intro/outro tumbles play 8x faster and the finish cube stops spinning
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
+
 type Axis = 'rotX' | 'rotY' | 'rotZ'
 
 //resting pose per orientation: height offset, centre offset from the tile, rotation in degrees
@@ -98,19 +101,20 @@ export function saveCurrentGame(): void {
 }
 
 function update(steps: number): void {
-  glob.rCube -= steps * FRAME_MS * 0.075
+  const effectSteps = reducedMotion.matches ? steps * 8 : steps
+  if (!reducedMotion.matches) glob.rCube -= steps * FRAME_MS * 0.075
   if (glob.newGame > 0) {
     input.queuedMove = null
-    glob.newGame = Math.max(0, glob.newGame - steps)
+    glob.newGame = Math.max(0, glob.newGame - effectSteps)
     if (glob.newGame === 0) land()
     return
   }
   if (glob.wonGame > 0) {
-    glob.wonGame = Math.max(0, glob.wonGame - steps)
+    glob.wonGame = Math.max(0, glob.wonGame - effectSteps)
     return
   }
   if (glob.lostGame > 0) {
-    glob.lostGame = Math.max(0, glob.lostGame - steps)
+    glob.lostGame = Math.max(0, glob.lostGame - effectSteps)
     return
   }
   if (glob.count === -1) {

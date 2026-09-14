@@ -200,3 +200,15 @@ export const CUBE_INDICES = new Uint16Array([	//this numbers are positions in th
 export const CUBE_COLORS = new Float32Array(
   Array.from({ length: 72 }, (_, i) => (i % 12 < 8 ? [0.25, 0.25, 0.25, 1.0] : [1.0, 1.0, 1.0, 1.0])).flat(),
 )
+
+//one normal per face, repeated for its 12 vertices, in face order: front, back, top, bottom, right, left
+export const CUBE_NORMALS = new Float32Array(
+  [
+    [0, 0, 1],
+    [0, 0, -1],
+    [0, 1, 0],
+    [0, -1, 0],
+    [1, 0, 0],
+    [-1, 0, 0],
+  ].flatMap((normal) => Array(12).fill(normal).flat()),
+)

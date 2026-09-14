@@ -2,14 +2,15 @@
 precision mediump float;
 in vec4 vColor;//interpolated from the vertex shader
 in vec2 vTextureCoord;
-//in vec3 vLighting;
+in vec3 vLighting;
 
-uniform sampler2D uSampler;
+//all tile textures in one array texture: one bind per frame, no bleeding between layers when mipmapped
+uniform mediump sampler2DArray uTiles;
+uniform int uLayer;
 
 out vec4 fragColor;
 
 void main(void) {
-	fragColor = texture(uSampler, vTextureCoord)*vColor;
-	//vec4 texelColor = texture(uSampler, vTextureCoord)*vColor;
-	//fragColor = vec4(texelColor.rgb*vLighting, texelColor.a);//computing fragment color after lighting
+	vec4 texelColor = texture(uTiles, vec3(vTextureCoord, float(uLayer)))*vColor;
+	fragColor = vec4(texelColor.rgb*vLighting, texelColor.a);//computing fragment color after lighting
 }

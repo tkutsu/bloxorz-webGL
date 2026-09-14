@@ -1,21 +1,32 @@
 import vertexShaderSource from './shaders/cube.vert?raw'
 import fragmentShaderSource from './shaders/cube.frag?raw'
-import { mat4, vec4 } from 'gl-matrix'
-import { CUBE_COLORS, CUBE_INDICES, CUBE_POSITIONS, CUBE_UVS } from './cube'
+import { mat3, mat4, vec4 } from 'gl-matrix'
+import { CUBE_COLORS, CUBE_INDICES, CUBE_NORMALS, CUBE_POSITIONS, CUBE_UVS } from './cube'
 import type { Direction } from './input'
 import { m4 } from './m4'
 import { glob, TILE } from './state'
 import { MOVE_FRAMES } from './loop'
 
-const TEXTURES = ['block', 'start', 'end', 'hero', 'endL', 'endDL', 'endD', 'endDR', 'endR', 'endUR', 'endU', 'endUL'] as const
-type TextureName = (typeof TEXTURES)[number]
+//layers of projectTextures/tiles.png, a vertical strip of 128×128 images
+const LAYER = { block: 0, start: 1, end: 2, hero: 3, endL: 4, endDL: 5, endD: 6, endDR: 7, endR: 8, endUR: 9, endU: 10, endUL: 11 }
+const TILE_SIZE = 128
+const LAYER_COUNT = 12
+
+//finish-tile halo, indexed by (dy + 1) * 3 + (dx + 1) where dx, dy are the tile's offset from the finish tile
+// prettier-ignore
+const HALO = [
+  LAYER.endDL, LAYER.endD,  LAYER.endDR,
+  LAYER.endL,  LAYER.block, LAYER.endR,
+  LAYER.endUL, LAYER.endU,  LAYER.endUR,
+]
 
 interface Renderer {
   gl: WebGL2RenderingContext
   canvas: HTMLCanvasElement
   uPMatrix: WebGLUniformLocation
   uMVMatrix: WebGLUniformLocation
-  textures: Record<TextureName, WebGLTexture>
+  uNormalMatrix: WebGLUniformLocation
+  uLayer: WebGLUniformLocation
 }
 
 let r: Renderer | null = null
@@ -25,6 +36,7 @@ const pMatrix = m4.create()
 const camera = m4.create()
 const tileCamera = m4.create()
 const mvMatrix = m4.create()
+const normalMatrix = mat3.create()
 const viewProjection = m4.create()
 let heroAnchor: [number, number, number] = [0, 0, 0]
 
@@ -66,21 +78,21 @@ function createCubeVAO(gl: WebGL2RenderingContext, program: WebGLProgram): void 
   attribute('aVertexPosition', CUBE_POSITIONS, 3)
   attribute('aVertexColor', CUBE_COLORS, 4)
   attribute('aTextureCoord', CUBE_UVS, 2)
+  attribute('aVertexNormal', CUBE_NORMALS, 3)
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer())
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, CUBE_INDICES, gl.STATIC_DRAW)
 }
 
-async function loadTexture(gl: WebGL2RenderingContext, name: TextureName): Promise<WebGLTexture> {
+async function loadTiles(gl: WebGL2RenderingContext): Promise<void> {
   const image = new Image()
-  image.src = `/projectTextures/${name}.bmp`
+  image.src = '/projectTextures/tiles.png'
   await image.decode()
-  const texture = gl.createTexture()
-  gl.bindTexture(gl.TEXTURE_2D, texture)
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
-  gl.generateMipmap(gl.TEXTURE_2D)
-  return texture
+  gl.bindTexture(gl.TEXTURE_2D_ARRAY, gl.createTexture())
+  //an image source is sliced top to bottom into LAYER_COUNT layers of TILE_SIZE × TILE_SIZE
+  gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, TILE_SIZE, TILE_SIZE, LAYER_COUNT, 0, gl.RGBA, gl.UNSIGNED_BYTE, image)
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+  gl.generateMipmap(gl.TEXTURE_2D_ARRAY)
 }
 
 //the drawing buffer follows the canvas' CSS size × devicePixelRatio (sharp on HiDPI, capped at 2x), divided by the quality setting
@@ -96,8 +108,8 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<boolean> 
   const program = createProgram(gl)
   gl.useProgram(program)
   createCubeVAO(gl, program)
-  const loaded = await Promise.all(TEXTURES.map((name) => loadTexture(gl, name)))
-  gl.uniform1i(gl.getUniformLocation(program, 'uSampler'), 0)
+  await loadTiles(gl)
+  gl.uniform1i(gl.getUniformLocation(program, 'uTiles'), 0)
   gl.clearColor(0.0, 0.0, 0.0, 0.0) //transparent: the page background shows through
   gl.enable(gl.DEPTH_TEST)
   r = {
@@ -105,7 +117,8 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<boolean> 
     canvas,
     uPMatrix: gl.getUniformLocation(program, 'uPMatrix') as WebGLUniformLocation,
     uMVMatrix: gl.getUniformLocation(program, 'uMVMatrix') as WebGLUniformLocation,
-    textures: Object.fromEntries(TEXTURES.map((name, i) => [name, loaded[i]])) as Record<TextureName, WebGLTexture>,
+    uNormalMatrix: gl.getUniformLocation(program, 'uNormalMatrix') as WebGLUniformLocation,
+    uLayer: gl.getUniformLocation(program, 'uLayer') as WebGLUniformLocation,
   }
   observeSize(canvas)
   return true
@@ -119,27 +132,20 @@ export function resizeCanvas(): void {
   r.canvas.height = Math.max(1, Math.round(r.canvas.clientHeight * scale))
 }
 
-function drawCube(texture: WebGLTexture): void {
-  const { gl } = r as Renderer
-  gl.bindTexture(gl.TEXTURE_2D, texture)
-  gl.uniformMatrix4fv((r as Renderer).uMVMatrix, false, mvMatrix)
+function drawCube(layer: number): void {
+  const { gl, uMVMatrix, uNormalMatrix, uLayer } = r as Renderer
+  gl.uniform1i(uLayer, layer)
+  gl.uniformMatrix4fv(uMVMatrix, false, mvMatrix)
+  gl.uniformMatrix3fv(uNormalMatrix, false, mat3.normalFromMat4(normalMatrix, mvMatrix))
   gl.drawElements(gl.TRIANGLES, CUBE_INDICES.length, gl.UNSIGNED_SHORT, 0)
 }
 
-function tileTexture(tile: number, j: number, i: number): WebGLTexture {
-  const { textures } = r as Renderer
-  const [fx, fy] = glob.finishPos
-  if (tile === TILE.END) return textures.end
-  if (tile === TILE.START) return textures.start
-  if (j + 1 === fx && i === fy) return textures.endL //moving clockwise around finish tile
-  if (j + 1 === fx && i + 1 === fy) return textures.endDL
-  if (j === fx && i + 1 === fy) return textures.endD
-  if (j - 1 === fx && i + 1 === fy) return textures.endDR
-  if (j - 1 === fx && i === fy) return textures.endR
-  if (j - 1 === fx && i - 1 === fy) return textures.endUR
-  if (j === fx && i - 1 === fy) return textures.endU
-  if (j + 1 === fx && i - 1 === fy) return textures.endUL
-  return textures.block
+function tileLayer(tile: number, j: number, i: number): number {
+  if (tile === TILE.END) return LAYER.end
+  if (tile === TILE.START) return LAYER.start
+  const dx = j - glob.finishPos[0]
+  const dy = i - glob.finishPos[1]
+  return Math.abs(dx) <= 1 && Math.abs(dy) <= 1 ? HALO[(dy + 1) * 3 + (dx + 1)] : LAYER.block
 }
 
 //For every frame this function draws the complete scene from the beginning
@@ -230,7 +236,7 @@ export function drawScene(): void {
       } else {
         m4.scale(mvMatrix, [0.5, 0.5, height])
       }
-      drawCube(tileTexture(row[j], j, i))
+      drawCube(tileLayer(row[j], j, i))
     }
   }
 
@@ -290,7 +296,7 @@ export function drawScene(): void {
     m4.rotate(mvMatrix, degToRad(g.rotZ * t + g.rotZprev * (1 - t)), [0, 0, 1])
   }
   m4.scale(mvMatrix, [0.5, 0.5, 1])
-  drawCube(r.textures.hero)
+  drawCube(LAYER.hero)
 }
 
 /**
