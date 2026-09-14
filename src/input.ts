@@ -1,6 +1,6 @@
 import { glob } from './state'
 import { directionOnScreen } from './renderer'
-import { changeQuality, isPlaying, newSeed, pause, setVolume, startFromMenu, toggleMute } from './project.js'
+import { changeQuality, isPlaying, newSeed, pause, setVolume, startFromMenu, toggleMute } from './ui'
 
 export type Direction = 'up' | 'right' | 'down' | 'left'
 

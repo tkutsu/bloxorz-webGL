@@ -2,7 +2,7 @@ import { glob, TILE, type HeroPos, type Level, type Vec2 } from './state'
 import { input, type Direction } from './input'
 import { clearGame, saveGame } from './save'
 import { play, type SoundName } from './audio'
-import { pageUI, webGLStart } from './project.js'
+import { pageUI, webGLStart } from './ui'
 import { drawScene } from './renderer'
 
 //every animation was tuned in 2013 as "N frames" on a 60 Hz screen; time is measured in those frames

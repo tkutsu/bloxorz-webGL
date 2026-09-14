@@ -1,6 +1,6 @@
 import './project.css'
 import { glob } from './state'
-import { initUI, pageUI } from './project.js'
+import { initUI, pageUI } from './ui'
 import { initInput } from './input'
 import { unlockAudio } from './audio'
 import { clearGame, loadGame, migrateLegacySave } from './save'
