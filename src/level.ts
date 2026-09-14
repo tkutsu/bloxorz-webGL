@@ -1,4 +1,5 @@
 import { mulberry32 } from './rng'
+import { isSolvable } from './rules'
 import type { Level } from './state'
 
 /** Level `levelIndex` of the run started with `runSeed`: same inputs, same level, on every machine. */
@@ -6,9 +7,16 @@ export function levelFor(runSeed: number, levelIndex: number): { lvl: Level; ran
   const rng = mulberry32(runSeed + Math.imul(levelIndex, 0x9e3779b9))
   const min = Math.floor(levelIndex / 5 + 5) //levels grow every 5 levels
   const max = min * 2
-  const width = Math.floor(rng() * (max - min + 1)) + min
-  const height = Math.floor(rng() * (max - min + 1)) + min
-  return { lvl: randomLevelGenerator(width, height, rng), randEffect: Math.floor(rng() * 4) }
+  let lvl: Level
+  //about 1 board in 300 can't be finished: a start or finish in a corner gets its room clipped by the grid edge,
+  //leaving only a diagonal staircase corridor the block can't roll along. Redraw until it can be finished;
+  //retries continue the same rng stream, so the result is still a pure function of the seed
+  do {
+    const width = Math.floor(rng() * (max - min + 1)) + min
+    const height = Math.floor(rng() * (max - min + 1)) + min
+    lvl = randomLevelGenerator(width, height, rng)
+  } while (!isSolvable(lvl))
+  return { lvl, randEffect: Math.floor(rng() * 4) }
 }
 
 //Randomly creates rooms and connects them

@@ -1,5 +1,6 @@
 import { glob, TILE, type HeroPos, type Level, type Vec2 } from './state'
-import { input, type Direction } from './input'
+import { input } from './input'
+import { isOffBoard, roll, type Direction } from './rules'
 import { clearGame, saveGame } from './save'
 import { play, type SoundName } from './audio'
 import { pageUI, webGLStart } from './ui'
@@ -31,9 +32,6 @@ const ROLL: Record<number, { alongX: [Axis, number]; alongY: [Axis, number] }> =
   2: { alongX: ['rotZ', -90], alongY: ['rotX', 90] },
   [-2]: { alongX: ['rotZ', 90], alongY: ['rotX', 90] },
 }
-
-//the tile a lying block covers besides its own
-const SECOND_CELL: Record<number, Vec2> = { 0: [0, 0], 1: [-1, 0], [-1]: [1, 0], 2: [0, -1], [-2]: [0, 1] }
 
 const LEVEL_SOUNDS: SoundName[] = ['newLvl1', 'newLvl2', 'newLvl3', 'newLvl4']
 
@@ -134,17 +132,9 @@ function land(): void {
   saveCurrentGame()
 }
 
-//heroPos (x , y , {0:standing 1:fallen horiz right -1:fallen horiz left 2:fallen verti down -2:fallen verti up})
 function startMove(dir: Direction): void {
-  const [x, y, o] = glob.heroPos
-  let to: HeroPos
-  //translation 1st integer: if standing, or horiz right, move 2 to the left, else 1 to the left
-  //translation 3rd integer: if standing, you are now horiz left, else if horizontal, now standing, else if vertical, you are still vertical
-  if (dir === 'left') to = [o === 0 || o === 1 ? x - 2 : x - 1, y, o === 0 ? -1 : o === 1 || o === -1 ? 0 : o]
-  else if (dir === 'up') to = [x, o === 0 || o === 2 ? y - 2 : y - 1, o === 0 ? -2 : o === 2 || o === -2 ? 0 : o]
-  else if (dir === 'right') to = [o === 0 || o === -1 ? x + 2 : x + 1, y, o === 0 ? 1 : o === 1 || o === -1 ? 0 : o]
-  else to = [x, o === 0 || o === -2 ? y + 2 : y + 1, o === 0 ? 2 : o === 2 || o === -2 ? 0 : o]
-
+  const [x, y] = glob.heroPos
+  const to = roll(glob.heroPos, dir)
   const dx = to[0] - x
   const [axis, degrees] = dx !== 0 ? ROLL[to[2]].alongX : ROLL[to[2]].alongY
   glob[axis] += degrees * Math.sign(dx !== 0 ? dx : to[1] - y)
@@ -172,15 +162,6 @@ function endMove(): void {
   glob.spring = false
   glob.count = -1
   if (!isOffBoard(lvl, glob.heroPos)) saveCurrentGame()
-}
-
-function isEmpty(lvl: Level, x: number, y: number): boolean {
-  return (lvl[y]?.[x] ?? TILE.EMPTY) === TILE.EMPTY
-}
-
-function isOffBoard(lvl: Level, [x, y, o]: HeroPos): boolean {
-  const [dx, dy] = SECOND_CELL[o]
-  return isEmpty(lvl, x, y) || isEmpty(lvl, x + dx, y + dy)
 }
 
 //Win-loss conditions, checked only while the block is at rest

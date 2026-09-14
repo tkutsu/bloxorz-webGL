@@ -1,8 +1,7 @@
 import { glob } from './state'
+import type { Direction } from './rules'
 import { directionOnScreen } from './renderer'
 import { changeQuality, isPlaying, newSeed, pause, setVolume, startFromMenu, toggleMute } from './ui'
-
-export type Direction = 'up' | 'right' | 'down' | 'left'
 
 export const input = {
   queuedMove: null as Direction | null, //consumed by the loop the next time the block is idle
