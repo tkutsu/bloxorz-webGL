@@ -20,6 +20,8 @@ body, html{
 	overflow:hidden;
 	font-family: 'ArialBlack', 'Arial Bold', Gadget, Impact, sans-serif;
 	cursor:default;
+	user-select:none;
+	-webkit-user-select:none;
 }
 ul{
 	list-style:none;

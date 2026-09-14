@@ -3,7 +3,6 @@
 var sounds={};
 sounds.score	=new Audio();
 sounds.landing	=new Audio();
-sounds.fallHoriz=new Audio();
 sounds.fallVerti=new Audio();
 sounds.newLvl1	=new Audio();
 sounds.newLvl2	=new Audio();
